@@ -1,0 +1,4 @@
+pytorch
+tensorflow
+numpy
+cv2
