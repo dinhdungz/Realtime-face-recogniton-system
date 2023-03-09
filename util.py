@@ -18,19 +18,23 @@ def get_images(detector, mode, path):
         if not ret:
             print("Can't receive frame (stream end?). Exiting ...")
             break
-        cv2.imshow(f'Turn your head left, right, up, down', img)
-        detection = detector(img)
-        result = detection.pandas().xyxy[0].to_numpy()
-        if len(result) >= 1:
-            i = result[0]
-            x_min = int(i[0])
-            x_max = int(i[2])
-            y_min = int(i[1])
-            y_max = int(i[3])
-            img = img[y_min:y_max, x_min:x_max]
-            img = cv2.resize(img, (125, 150))
-            cv2.imwrite(f'{path}/{count}.jpg', img)
-            count+=1
+        cv2.imshow(f'Turn your head left, right, up, down - Enter c untill stop', img)
+        if cv2.waitKey(1) == ord('c'):
+            detection = detector(img)
+            result = detection.pandas().xyxy[0].to_numpy()
+            if len(result) >= 1:
+                i = result[0]
+                x_min = int(i[0])
+                x_max = int(i[2])
+                y_min = int(i[1])
+                y_max = int(i[3])
+                img = img[y_min:y_max, x_min:x_max]
+                img = cv2.resize(img, (125, 150))
+                cv2.imwrite(f'{path}/{count}.jpg', img)
+                count+=1
+
+    cap.release()
+    cv2.destroyAllWindows()
 
 def get_feature(feature_extractor, path):
     list_images = os.listdir(path)
@@ -230,3 +234,5 @@ def recognition(detector, feature_extractor):
             
         if cv2.waitKey(1) == ord('q'):
             break
+        cap.release()
+        cv2.destroyAllWindows()
