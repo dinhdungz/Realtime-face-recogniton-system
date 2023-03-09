@@ -6,59 +6,54 @@ import csv
 import cv2
 import numpy as np
 from scipy.special import softmax
+from tensorflow.keras.applications.resnet50 import preprocess_input
 
+def get_images(detector, mode, path):
+    if mode == '0':
+        mode = int(mode)
+    cap = cv2.VideoCapture(mode)
+    count = 0
+    while count < 16:
+        ret, img = cap.read()
+        if not ret:
+            print("Can't receive frame (stream end?). Exiting ...")
+            break
+        cv2.imshow(f'Turn your head left, right, up, down', img)
+        detection = detector(img)
+        result = detection.pandas().xyxy[0].to_numpy()
+        if len(result) >= 1:
+            i = result[0]
+            x_min = int(i[0])
+            x_max = int(i[2])
+            y_min = int(i[1])
+            y_max = int(i[3])
+            img = img[y_min:y_max, x_min:x_max]
+            img = cv2.resize(img, (125, 150))
+            cv2.imwrite(f'{path}/{count}.jpg', img)
+            count+=1
 
-def add_new_person(name, mode, detector, feature_extractor, save_path, path_image = None):
-    '''
-    This function adds a new person to the system. It takes in the following parameters: 
-    
-    # name (string): the name of the person being added 
-    # mode (int): 0 for image, 1 for video 
-    # detector (function): a model that detects faces in an image or video frame 
-    # feature_extractor (function): a model that extracts features from an image of a face 
-    # save_path (string): the path to save the image of the face 
-    # path_image (string, optional): path to an image if mode is 0. If mode is 1, this parameter is not used. 
-
-    # The function first reads in an image or video frame depending on the value of mode
-    If mode is 0, it reads in an image from path_image
-    If mode is 1, it captures frames from a video stream until 's' is pressed
-    Then it uses detector to detect faces in the frame and extracts features from the detected face using feature_extractor
-    It then saves the detected face as an image at save_path/name.jpg and writes both the feature vector and name to files.
-    '''
-    img = None
-    if mode == 0 :
-        img = cv2.imread(path_image)
-    else:
-        cap = cv2.VideoCapture(0)
-        while True:
-            ret, img = cap.read()
-            if not ret:
-                print("Can't receive frame (stream end?). Exiting ...")
-                break
-            cv2.imshow('Enter s to save image', img)
-            if cv2.waitKey(1) == ord('s'):
-                
-                break
-    
-    detection = detector(img)
-    result = detection.pandas().xyxy[0].to_numpy()
-    if len(result) >= 1:
-        i = result[0]
-        x_min = int(i[0])
-        x_max = int(i[2])
-        y_min = int(i[1])
-        y_max = int(i[3])
-        img = img[y_min:y_max, x_min:x_max]
-        img = cv2.resize(img, (125, 150))
-        cv2.imwrite(f'{save_path}/{name}.jpg', img)
-        img = np.expand_dims(img, axis = 0)
-    else:
-        print('Please choose other image')
-        return 
-    
-    feature = feature_extractor.predict(img)
+def get_feature(feature_extractor, path):
+    list_images = os.listdir(path)
+    images = []
+    for i in list_images:
+        img = cv2.imread(f'{path}/{i}')
+        images.append(img)
+    images = np.array(images)
+    images = preprocess_input(images)
+    features = feature_extractor(images)
+    feature = np.sum(features, axis = 0)
+    feature = np.reshape(feature, (1, 128))
     np.set_printoptions(precision=4,formatter={'float_kind':'{:4f}'.format})
+    return feature
 
+
+def add_new_person(name, detector, feature_extractor, mode = 0 ):
+    path = f'./Person/images/{name}'
+    os.mkdir(path)
+    get_images(detector, mode, path)
+    
+    feature = get_feature(feature_extractor, path)
+    
     write_feature(feature)
     write_name(name)
 
@@ -177,3 +172,61 @@ def get_number(file):
         number +=1
     f.close()
     return number
+
+def show_atd(path):
+    f = open(path, 'r')
+    reader = csv.reader(f)
+    for row in reader:
+        print(*row)
+
+def recognition(detector, feature_extractor):
+    
+    cap = cv2.VideoCapture(0)
+    path = get_path()
+    label = get_label('/home/dung/Project/Realtime_face_recognition/Person/name.txt')
+    attended_count = create_attended_count(label)
+
+    while True:
+        ret, image = cap.read()
+        detection = detector(image)
+        results = detection.pandas().xyxy[0].to_numpy()
+        for i in results:
+            if i[4] >= 0.6:
+                x_min = int(i[0])
+                x_max = int(i[2])
+                y_min = int(i[1])
+                y_max = int(i[3])
+                img = image[y_min:y_max, x_min:x_max]
+                img = cv2.resize(img, (125, 150))
+                img_exp = np.expand_dims(img, axis = 0)
+                feature = feature_extractor.predict(img_exp)
+
+                label = get_label('./Person/name.txt')
+                feature_array = get_feature_array('./Person/feature.csv')
+                name, acc = predict(feature, feature_array, label)
+                label = name
+                # process
+                if acc > 0.85:
+                    attended_count[name] +=1
+                    if attended_count[name] > 20:
+                        
+                        label = 'Completed Attendance'
+                    image = cv2.rectangle(image, (x_min, y_min), (x_max, y_max), (0, 255, 0), 1)
+                    image = cv2.putText(image, f'{label}', (x_min, y_min), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 1)
+                else:
+                    label = 'Unknown'
+                    image = cv2.rectangle(image, (x_min, y_min), (x_max, y_max), (0, 255, 0), 1)
+                    image = cv2.putText(image, f'{label}', (x_min, y_min), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 1)
+                
+
+                if attended_count[name] == 20:
+                    number = get_number(f'{path}/attended_table.csv')
+                    update(f'{path}/attended_table.csv', name, number)
+                    cv2.imwrite(f'{path}/Attended_images/{name}.jpg',img)
+                
+            else:
+                continue
+        cv2.imshow('Recognition - Enter q to exit', image)
+            
+        if cv2.waitKey(1) == ord('q'):
+            break
