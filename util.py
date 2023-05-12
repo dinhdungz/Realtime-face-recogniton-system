@@ -240,5 +240,5 @@ def recognition(detector, feature_extractor):
             
         if cv2.waitKey(1) == ord('q'):
             break
-        cap.release()
-        cv2.destroyAllWindows()
+    cap.release()
+    cv2.destroyAllWindows()
