@@ -1,7 +1,7 @@
 from util import *
 
-detector = torch.hub.load('ultralytics/yolov5', 'custom', path = './Model/face_detection_yolov5s.pt')
-feature_extractor = tf.keras.models.load_model('./Model/feature_extractor')
+detector = torch.hub.load('ultralytics/yolov5', 'custom', path = '/home/dung/Project/Realtime_face_recognition/Model/face_detect_v1.pt')
+feature_extractor = tf.keras.models.load_model('/home/dung/Project/Realtime_face_recognition/Model/feature_extractor')
 
 while True:
     print('\n')

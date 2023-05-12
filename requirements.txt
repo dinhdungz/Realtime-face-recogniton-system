@@ -1,4 +1,7 @@
-pytorch
+torch
+torchvision
 tensorflow
-numpy
-cv2
+opencv-python
+pandas
+matplotlib
+seaborn

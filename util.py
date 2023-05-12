@@ -186,12 +186,18 @@ def show_atd(path):
 def recognition(detector, feature_extractor):
     
     cap = cv2.VideoCapture(0)
+    if not cap.isOpened():
+        print("Cannot open camera")
+        exit()
     path = get_path()
     label = get_label('/home/dung/Project/Realtime_face_recognition/Person/name.txt')
     attended_count = create_attended_count(label)
 
     while True:
         ret, image = cap.read()
+        if not ret:
+            print("Can't receive frame (stream end?). Exiting ...")
+            break
         detection = detector(image)
         results = detection.pandas().xyxy[0].to_numpy()
         for i in results:
