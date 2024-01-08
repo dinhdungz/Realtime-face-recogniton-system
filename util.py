@@ -13,13 +13,13 @@ def get_images(detector, mode, path):
         mode = int(mode)
     cap = cv2.VideoCapture(mode)
     count = 0
-    while count < 16:
+    while count < 1:
         ret, img = cap.read()
         if not ret:
             print("Can't receive frame (stream end?). Exiting ...")
             break
-        cv2.imshow(f'Turn your head left, right, up, down - Enter c untill stop', img)
-        if cv2.waitKey(1) == ord('c'):
+        cv2.imshow(f'Look straight into the camera and press s', img)
+        if cv2.waitKey(1) == ord('s'):
             detection = detector(img)
             result = detection.pandas().xyxy[0].to_numpy()
             if len(result) >= 1:
